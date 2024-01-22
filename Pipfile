@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+num2text-ru = {editable = true, path = "."}
+
+[dev-packages]
+pytest = "==7.4.4"
+pytest-cov = "==4.1.0"
+black = "==23.12.1"
+flake8 = "==7.0.0"
+
+[scripts]
+tests = "pytest tests"
+black = "black --line-length=120 ./num2text_ru"
+flake8 = "flake8 --max-line-length=120 --count --exclude=__version__.py ./num2text_ru"
+
+[requires]
+python_version = "3.11"
+python_full_version = "3.11.1"
