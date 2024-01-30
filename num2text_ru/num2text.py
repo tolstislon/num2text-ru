@@ -1,11 +1,14 @@
 import re
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
-from .data import HUNDREDS, MINUS, NAMES_OF_DECIMALS, NAMES_OF_DEGREES, TEENS, TENS, UNITS
+from .values import HUNDREDS, MINUS, NAMES_OF_DECIMALS, NAMES_OF_DEGREES, TEENS, TENS, UNITS
 from .enums import Genus, Plural
-from .exceptions import InvalidNumberException, InvalidTypeException, LargeNumberException
+from .exceptions import (
+    InvalidNumberException, LargeNumberException, NumberTooBigException,
+    ValueIsNotANumber,
+)
 from .types import Names
 
 
@@ -41,8 +44,8 @@ def int2text(num: int, name: Names) -> str:
     if num == 0:
         return f"{UNITS[0].get(name.genus)} {name.genitive}"
     rest = abs(num)
-    if rest >= 10**20:
-        raise ValueError("Число слишком большое")
+    if rest >= 10 ** 20:
+        raise NumberTooBigException()
     count = 0
     words = []
     values = (name, *NAMES_OF_DEGREES)
@@ -75,7 +78,7 @@ def orix(value) -> Union[int, float, Decimal]:
                 return float(value)
             except ValueError:
                 pass
-    raise TypeError(f'Value "{value}" is not a number')
+    raise ValueIsNotANumber(value)
 
 
 def find_ndigits(value) -> int:
@@ -119,14 +122,9 @@ def num2text(num: Union[int, float, Decimal], names: Union[Names, Tuple[Names, .
 class MetaNum2Text(metaclass=ABCMeta):
     ndigits: int = 0
     names = (Names("", "", "", Genus.MASCULINE),)
-    unique_type: bool = False
 
-    def _compare_type(self, value) -> None:
-        if type(value) is not type(self) and self.unique_type:
-            raise InvalidTypeException(self, value)
-
-    def _process(self) -> str:
-        return num2text(self.value, self.names, self.ndigits)
+    @abstractmethod
+    def _process(self) -> str: ...
 
     def __init__(self, value: Union[int, float, Decimal, str], ndigits: Optional[int] = None):
         self.value, _ndigits = get_values(value)
@@ -140,28 +138,37 @@ class MetaNum2Text(metaclass=ABCMeta):
         return f"{type(self).__name__}({self.value})"
 
     def __add__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value + other.value)
+        return Num2Text(self.value + Num2Text(other).value)
 
     def __sub__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value - other.value)
+        return Num2Text(self.value - Num2Text(other).value)
 
     def __mul__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value * other.value)
+        return Num2Text(self.value * Num2Text(other).value)
 
     def __truediv__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value / other.value)
+        return Num2Text(self.value / Num2Text(other).value)
 
     def __floordiv__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value // other.value)
+        return Num2Text(self.value // Num2Text(other).value)
 
     def __mod__(self, other):
-        self._compare_type(other)
-        return self.__class__(self.value % other.value)
+        return Num2Text(self.value % Num2Text(other).value)
+
+    def __pow__(self, power, modulo=None):
+        return Num2Text(self.value ** Num2Text(power).value)
+
+    def __bool__(self):
+        return bool(self.value)
+
+    def __lt__(self, other):
+        return self.value < Num2Text(other).value
+
+    def __le__(self, other):
+        return self.value <= Num2Text(other).value
+
+    def __eq__(self, other):
+        return self.value == Num2Text(other).value
 
 
 class Int2Text(MetaNum2Text):
@@ -183,14 +190,17 @@ class Float2Text(MetaNum2Text):
         value = f"{self.value:.{self.ndigits or 1}f}"
         integral, exp = value.split(".")
         if len(exp) + 1 > len(self.names):
-            raise ValueError("Слишком точное число")
+            raise LargeNumberException()
         return num2text(num=Decimal(self.value), names=(self.names[0], self.names[len(exp)]), ndigits=self.ndigits)
 
 
 class Num2Text:
+
     def __new__(
         cls, value: Union[int, float, Decimal, str], ndigits: Optional[int] = None
     ) -> Union[Int2Text, Float2Text]:
+        if isinstance(value, (Int2Text, Float2Text)):
+            return value
         value = orix(value)
         if ndigits == 0 and isinstance(value, float):
             value = int(round(value, 0))

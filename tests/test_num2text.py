@@ -1,5 +1,7 @@
 import pytest
+
 from num2text_ru import Num2Text
+from num2text_ru.exceptions import NumberTooBigException, ValueIsNotANumber
 
 
 INT_PARAMS = (
@@ -80,4 +82,19 @@ def test_static_ndigits(number, ndigits, expected):
 def test_zero_ndigits():
     value = Num2Text(2.13, ndigits=0)
     assert str(value) == 'два'
-    print(Num2Text(3.14))
+
+
+def test_invalid_value():
+    with pytest.raises(ValueIsNotANumber):
+        Num2Text('ass')
+
+
+def test_big_value():
+    with pytest.raises(NumberTooBigException):
+        Num2Text(10 ** 20)
+
+
+@pytest.mark.parametrize('number', (1, 0.1))
+def test_repr(number):
+    value = Num2Text(number)
+    assert repr(value).startswith(type(value).__name__)
