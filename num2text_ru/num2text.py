@@ -3,10 +3,20 @@ from abc import ABCMeta, abstractmethod
 from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
-from .values import HUNDREDS, MINUS, NAMES_OF_DECIMALS, NAMES_OF_DEGREES, TEENS, TENS, UNITS
+from .values import (
+    HUNDREDS,
+    MINUS,
+    NAMES_OF_DECIMALS,
+    NAMES_OF_DEGREES,
+    TEENS,
+    TENS,
+    UNITS,
+)
 from .enums import Genus, Plural
 from .exceptions import (
-    InvalidNumberException, LargeNumberException, NumberTooBigException,
+    InvalidNumberException,
+    LargeNumberException,
+    NumberTooBigException,
     ValueIsNotANumber,
 )
 from .types import Names
@@ -44,7 +54,7 @@ def int2text(num: int, name: Names) -> str:
     if num == 0:
         return f"{UNITS[0].get(name.genus)} {name.genitive}"
     rest = abs(num)
-    if rest >= 10 ** 20:
+    if rest >= 10**20:
         raise NumberTooBigException()
     count = 0
     words = []
@@ -104,7 +114,11 @@ def minus(value: Union[int, float, Decimal], string: str) -> str:
     return string.strip()
 
 
-def num2text(num: Union[int, float, Decimal], names: Union[Names, Tuple[Names, ...]], ndigits: int = 2) -> str:
+def num2text(
+    num: Union[int, float, Decimal],
+    names: Union[Names, Tuple[Names, ...]],
+    ndigits: int = 2,
+) -> str:
     if isinstance(names, Names):
         names = (names,)
     if isinstance(num, int):
@@ -124,7 +138,8 @@ class MetaNum2Text(metaclass=ABCMeta):
     names = (Names("", "", "", Genus.MASCULINE),)
 
     @abstractmethod
-    def _process(self) -> str: ...
+    def _process(self) -> str:
+        ...
 
     def __init__(self, value: Union[int, float, Decimal, str], ndigits: Optional[int] = None):
         self.value, _ndigits = get_values(value)
@@ -164,11 +179,26 @@ class MetaNum2Text(metaclass=ABCMeta):
     def __lt__(self, other):
         return self.value < Num2Text(other).value
 
+    def __gt__(self, other):
+        return self.value > Num2Text(other).value
+
+    def __ge__(self, other):
+        return self.value >= Num2Text(other).value
+
     def __le__(self, other):
         return self.value <= Num2Text(other).value
 
     def __eq__(self, other):
         return self.value == Num2Text(other).value
+
+    def __int__(self):
+        return int(self.value)
+
+    def __float__(self):
+        return float(self.value)
+
+    def __round__(self, n=None):
+        return Num2Text(round(self.value, n))
 
 
 class Int2Text(MetaNum2Text):
@@ -191,17 +221,20 @@ class Float2Text(MetaNum2Text):
         integral, exp = value.split(".")
         if len(exp) + 1 > len(self.names):
             raise LargeNumberException()
-        return num2text(num=Decimal(self.value), names=(self.names[0], self.names[len(exp)]), ndigits=self.ndigits)
+        return num2text(
+            num=Decimal(self.value),
+            names=(self.names[0], self.names[len(exp)]),
+            ndigits=self.ndigits,
+        )
 
 
 class Num2Text:
-
     def __new__(
         cls, value: Union[int, float, Decimal, str], ndigits: Optional[int] = None
     ) -> Union[Int2Text, Float2Text]:
         if isinstance(value, (Int2Text, Float2Text)):
             return value
         value = orix(value)
-        if ndigits == 0 and isinstance(value, float):
+        if ndigits == 0 and isinstance(value, (float, Decimal)):
             value = int(round(value, 0))
         return Int2Text(value) if isinstance(value, int) and not ndigits else Float2Text(value, ndigits=ndigits)

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 import pytest
-
+from math import pi
 from num2text_ru import Num2Text
 
 
@@ -154,27 +154,50 @@ class TestNum2TextBool:
 
 class TestNum2TextCompare:
 
-    def test_num2text_lt(self):
-        assert Num2Text(1.2) > Num2Text(1)
+    def test_num2text_lt(self, int_type):
+        assert Num2Text(1.2) > int_type(1)
 
-    def test_num2text_lt_neg(self):
-        assert not Num2Text(1.2) < Num2Text(1)
+    def test_num2text_ge(self, int_type):
+        assert Num2Text(1.2) < int_type(2)
+
+    def test_num2text_lt_neg(self, int_type):
+        assert not Num2Text(1.2) < int_type(1)
 
     @pytest.mark.parametrize('value', (1, 1.2))
-    def test_num2text_le(self, value):
-        assert Num2Text(value) >= Num2Text(1)
+    def test_num2text_le(self, value, int_type):
+        assert Num2Text(value) >= int_type(1)
 
-    def test_num2text_le_neg(self):
-        assert not Num2Text(1.2) <= Num2Text(1)
+    def test_num2text_le_neg(self, int_type):
+        assert not Num2Text(1.2) <= int_type(1)
 
-    def test_num2text_eq(self):
-        assert Num2Text(1.0) == Num2Text(1)
+    def test_num2text_eq(self, int_type):
+        assert Num2Text(1.0) == int_type(1)
 
-    def test_num2text_eq_neg(self):
-        assert not Num2Text(1.1) == Num2Text(1)
+    def test_num2text_eq_neg(self, int_type):
+        assert not Num2Text(1.1) == int_type(1)
 
-    def test_num2text_ne(self):
-        assert Num2Text(1.1) != Num2Text(1)
+    def test_num2text_ne(self, int_type):
+        assert Num2Text(1.1) != int_type(1)
 
-    def test_num2text_ne_neg(self):
-        assert not Num2Text(1.0) != Num2Text(1)
+    def test_num2text_ne_neg(self, int_type):
+        assert not Num2Text(1.0) != int_type(1)
+
+
+class TestNum2TextCon:
+
+    def test_num2text_int(self):
+        num = int(Num2Text(2))
+        assert type(num) is int
+        assert num == 2
+
+    def test_num2text_float(self):
+        num = float(Num2Text(2.1))
+        assert type(num) is float
+        assert num == 2.1
+
+    @pytest.mark.parametrize(
+        'ndigits, text', ((None, 'три'), (0, 'три целых ноль десятых'), (2, 'три целых четырнадцать сотых'))
+    )
+    def test_num2text_round(self, ndigits, text):
+        num_text = Num2Text(pi)
+        assert str(round(num_text, ndigits=ndigits)) == text
